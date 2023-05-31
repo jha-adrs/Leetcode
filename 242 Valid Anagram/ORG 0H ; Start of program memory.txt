@@ -1,0 +1,64 @@
+ORG 0H              ; Start of program memory
+
+MOV P1, #00H       ; Initialize P1 as input port
+MOV P2, #00H        ; Initialize P2 as output port
+
+MOV TMOD, #20H      ; Set Timer 1 in Mode 2 for 8-bit auto-reload
+MOV TH1, #0FDH      ; Set the baud rate to 9600 bps
+MOV SCON, #50H      ; Enable serial communication with 8-bit data and variable baud rate
+SETB TR1            ; Start Timer 1
+
+MOV DPTR, #200H     ; Set the data memory pointer to 200H
+
+WAIT:
+JNB RI, WAIT        ; Wait until a byte is received
+MOV A, SBUF         ; Move the received byte to accumulator
+MOVX @DPTR, A        ; Store the byte in memory location pointed by DPTR
+INC DPTR            ; Increment the data memory pointer
+
+MOV A, #01H         ; Set the cursor to the first position of the first line
+CALL LCD_CMD        ; Call the function to send the command to the LCD
+MOV P1,#"S"
+MOV DPTR, #200H     ; Set the data memory pointer to 200H
+
+LOOP:
+
+
+MOVX A, @DPTR       ; Move the byte from memory location pointed by DPTR to accumulator
+INC DPTR            ; Increment the data memory pointer
+
+CALL LCD_CHAR       ; Call the function to display the character on the LCD
+
+CJNE A, #00H, LOOP  ; Continue looping until a null character is encountered
+
+HALT: SJMP HALT      ; Infinite loop to stop the program execution
+
+; Subroutine to send a command to the LCD display
+LCD_CMD:
+    CLR P2.0        ; RS = 0 for command mode
+    CLR P2.1        ; RW = 0 for write mode
+    MOV P1, A       ; Move the command to P1
+    SETB P2.2       ; Enable the LCD display
+    ACALL DELAY     ; Call the function to introduce a delay
+    CLR P2.2        ; Disable the LCD display
+    RET
+
+; Subroutine to display a character on the LCD display
+LCD_CHAR:
+    SETB P2.0       ; RS = 1 for data mode
+    CLR P2.1        ; RW = 0 for write mode
+    MOV P1, A       ; Move the character to P1
+    SETB P2.2       ; Enable the LCD display
+    ACALL DELAY     ; Call the function to introduce a delay
+    CLR P2.2        ; Disable the LCD display
+    RET
+
+; Subroutine to introduce a delay
+DELAY:
+    MOV R1, #0FFH    ; Load R1 with 0xFF
+D1: MOV R2, #0FFH    ; Load R2 with 0xFF
+D2: DJNZ R2, D2      ; Decrement R2 until it becomes zero
+    DJNZ R1, D1      ; Decrement R1 until it becomes zero
+    RET
+
+END                 ; End of program
